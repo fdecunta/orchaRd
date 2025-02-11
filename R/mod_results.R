@@ -95,6 +95,7 @@ mod_results <- function(model,
   }
 
 
+  # Set up some parameters
   if (is.null(stats::formula(model))) {
     model$formula.mods <- ~ 1
   }
