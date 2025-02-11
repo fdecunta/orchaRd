@@ -62,71 +62,92 @@
 #'
 # We will need to make sure people use "1" or"moderator_names"
 
-mod_results <- function(model, mod = "1", group,  N = NULL,  weights = "prop", by = NULL, at = NULL, subset = FALSE, upper = TRUE, ...){
+mod_results <- function(model,
+                        mod = "1",
+                        group,
+                        N = NULL,
+                        weights = "prop",
+                        by = NULL,
+                        at = NULL,
+                        subset = FALSE,
+                        upper = TRUE,
+                        ...) {
 
-  if(any(grepl("-1|0", as.character(model$formula.mods)))){
-    warning("It is recommended that you fit the model with an intercept. Unanticipated errors can occur otherwise.")
-  }
-
-  if(any(model$struct %in% c("GEN", "HCS"))){
-    warning("We noticed you're fitting an ~inner|outer rma model ('random slope'). There are circumstances where the prediction intervals for such models are calculated incorrectly. Please check your results carefully.")
-  }
-
-  if(missing(model)){
+  if (missing(model)) {
     stop("Please specify the 'model' argument by providing rma.mv or rma model object. See ?mod_results")
   }
 
-  if(all(class(model) %in% c("robust.rma", "rma.mv", "rma", "rma.uni")) == FALSE) {stop("Sorry, you need to fit a metafor model of class rma.mv, rma, or robust.rma")}
+  if (all(class(model) %in% c("robust.rma", "rma.mv", "rma", "rma.uni")) == FALSE) {
+    stop("Sorry, you need to fit a metafor model of class rma.mv, rma, or robust.rma")
+  }
 
-  if(missing(group)){
+
+  if (missing(group)) {
     stop("Please specify the 'group' argument by providing the name of the grouping variable. See ?mod_results")
   }
 
+  if (any(grepl("-1|0", as.character(model$formula.mods)))) {
+    warning("It is recommended that you fit the model with an intercept. Unanticipated errors can occur otherwise.")
+  }
 
-  if(is.null(stats::formula(model))){ ##**NOTE** Not sure we need this bit of code anymore. Left here for now
-    #model <- stats::update(model, "~1")
+  if (any(model$struct %in% c("GEN", "HCS"))) {
+    warning("We noticed you're fitting an ~inner|outer rma model ('random slope'). There are circumstances where the prediction intervals for such models are calculated incorrectly. Please check your results carefully.")
+  }
+
+
+  if (is.null(stats::formula(model))) {
     model$formula.mods <- ~ 1
-    #dat_tmp <- model$data$`1` <- "Intrcpt"
-    #model$data <- dat_tmp
   }
 
-   if(model$test == "t"){
-    df_mod = as.numeric(model$ddf[[1]])
-  } else{
-    df_mod = 1.0e6 # almost identical to z value
+  if (model$test == "t") {
+    df_mod <- as.numeric(model$ddf[[1]])
+  } else {
+    df_mod <- 1.0e6 # almost identical to z value
   }
 
-# Extract the data from the model object
-data <- model$data 
+  # Extract the data from the model object.
+  # Use only complete cases, remove NAs
+  data <- model$data[model$not.na, ]
 
-# Check if missing values exist and use complete case data
-if(any(model$not.na == FALSE)){
-	data <- data[model$not.na,]
-}
+  # ----------------------------------------
+  # Check if `mod` is a qualitative factor
+  if (is.character(data[[mod]]) | is.factor(data[[mod]]) | is.null(data[[mod]])) {
+    grid <- emmeans::qdrg(formula = stats::formula(model),
+                          at = at,
+                          data = data,
+                          coef = model$b,
+                          vcov = stats::vcov(model),
+                          df = model$k - 1)
+    # NOTE: Added data argument emmeans >vers 1.7.4.
+    # Object is unstable so feeding in the relevant arguments from
+    # model object directly. Note, we should think about df!
 
-  if(is.character(data[[mod]]) | is.factor(data[[mod]]) | is.null(data[[mod]])) {
-    grid <- emmeans::qdrg(formula = stats::formula(model), at = at, data = data, coef = model$b,
-                          vcov = stats::vcov(model), df = model$k-1) ## NOTE: Added data argument emmeans >vers 1.7.4. Object is unstable so feeding in the relevant arguments from model object directly. Note, we should think about df!
-    mm <- emmeans::emmeans(grid, specs = mod, df = df_mod, by = by, weights = weights, ...)
+    mm <- emmeans::emmeans(grid,
+                           specs = mod,
+                           df = df_mod,
+                           by = by,
+                           weights = weights,
+                           ...)
 
     # getting prediction intervals
     mm_pi <- pred_interval_esmeans(model, mm, mod = mod)
 
-    if(is.null(by)){
+    if (is.null(by)) {
       mod_table <- data.frame(name = firstup(as.character(mm_pi[,1]), upper = upper),
-                              estimate = mm_pi[,"emmean"],
-                              lowerCL = mm_pi[,"lower.CL"],
-                              upperCL = mm_pi[,"upper.CL"],
-                              lowerPR = mm_pi[,"lower.PI"],
-                              upperPR = mm_pi[,"upper.PI"])
+                              estimate = mm_pi[, "emmean"],
+                              lowerCL = mm_pi[, "lower.CL"],
+                              upperCL = mm_pi[, "upper.CL"],
+                              lowerPR = mm_pi[, "lower.PI"],
+                              upperPR = mm_pi[, "upper.PI"])
 
-    } else{
-      mod_table <- data.frame(name = firstup(as.character(mm_pi[,1]), upper = upper),
-                              condition = mm_pi[,2], estimate = mm_pi[,"emmean"],
-                              lowerCL = mm_pi[,"lower.CL"],
-                              upperCL = mm_pi[,"upper.CL"],
-                              lowerPR = mm_pi[,"lower.PI"],
-                              upperPR = mm_pi[,"upper.PI"])
+    } else {
+      mod_table <- data.frame(name = firstup(as.character(mm_pi[, 1]), upper = upper),
+                              condition = mm_pi[, 2],
+                              estimate = mm_pi[, "emmean"],
+                              lowerCL = mm_pi[, "lower.CL"],
+                              upperCL = mm_pi[, "upper.CL"],
+                              lowerPR = mm_pi[, "lower.PI"],
+                              upperPR = mm_pi[, "upper.PI"])
     }
 
     # Extract data
@@ -136,31 +157,44 @@ if(any(model$not.na == FALSE)){
                              levels = mod_table$name,
                              labels = mod_table$name)
 
-  } else{
-    at2 <- list(mod = seq(min(data[,mod], na.rm = TRUE), max(data[,mod], na.rm = TRUE), length.out = 100))
+  } else {
+    # Else, if `mod` is quantitative:
+    at2 <- list(mod = seq(min(data[, mod], na.rm = TRUE),
+                          max(data[, mod], na.rm = TRUE),
+                          length.out = 100))
+
     names(at2) <- mod
-    grid <- emmeans::qdrg(formula =  stats::formula(model), data = data, coef = model$b,
-                          vcov = stats::vcov(model), df = model$k-1, at = c(at2, at))  # getting 100 points. Fixing this to make it more general
-    mm <- emmeans::emmeans(grid, specs = mod, by = c(mod, by), weights = weights, df = df_mod)
+    grid <- emmeans::qdrg(formula = stats::formula(model),
+                          data = data,
+                          coef = model$b,
+                          vcov = stats::vcov(model),
+                          df = model$k - 1,
+                          at = c(at2, at))  # getting 100 points. Fixing this to make it more general
+
+    mm <- emmeans::emmeans(grid,
+                           specs = mod,
+                           by = c(mod, by),
+                           weights = weights,
+                           df = df_mod)
 
     # getting prediction intervals
     mm_pi <- pred_interval_esmeans(model, mm, mod = mod)
 
-    if(is.null(by)){
-      mod_table <- data.frame(moderator = mm_pi[,1],
-                              estimate = mm_pi[,"emmean"],
-                              lowerCL = mm_pi[,"lower.CL"],
-                              upperCL = mm_pi[,"upper.CL"],
-                              lowerPR = mm_pi[,"lower.PI"],
-                              upperPR = mm_pi[,"upper.PI"])
-    } else{
-      mod_table <- data.frame(moderator = mm_pi[,1],
-                              condition = mm_pi[,2],
-                              estimate = mm_pi[,"emmean"],
-                              lowerCL = mm_pi[,"lower.CL"],
-                              upperCL = mm_pi[,"upper.CL"],
-                              lowerPR = mm_pi[,"lower.PI"],
-                              upperPR = mm_pi[,"upper.PI"])
+    if (is.null(by)) {
+      mod_table <- data.frame(moderator = mm_pi[, 1],
+                              estimate = mm_pi[, "emmean"],
+                              lowerCL = mm_pi[, "lower.CL"],
+                              upperCL = mm_pi[, "upper.CL"],
+                              lowerPR = mm_pi[, "lower.PI"],
+                              upperPR = mm_pi[, "upper.PI"])
+    } else {
+      mod_table <- data.frame(moderator = mm_pi[, 1],
+                              condition = mm_pi[, 2],
+                              estimate = mm_pi[, "emmean"],
+                              lowerCL = mm_pi[, "lower.CL"],
+                              upperCL = mm_pi[, "upper.CL"],
+                              lowerPR = mm_pi[, "lower.PI"],
+                              upperPR = mm_pi[, "upper.PI"])
     }
 
     # extract data
