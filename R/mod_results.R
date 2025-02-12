@@ -109,29 +109,56 @@ mod_results <- function(model,
   # Extract the data from the model object.
   # Use only complete cases, remove NAs
   data <- model$data[model$not.na, ]
+  
+
+
+  # FD: Get the vector of the mod from the data
+  mod_vector <- data[[mod]]
+
+  # ---------------------------------------- 
+  # Get grid from emmeans
+  grid_args <- list(formula = stats::formula(model),
+                    data    = data,
+                    coef    = model$b,
+                    vcov    = stats::vcov(model),
+                    df      = model$k - 1)
+
+  if (is_categorical(mod_vector)) {
+    grid_args$at <- at
+  } else {
+    at2 <- list(mod = seq(min(mod_vector, na.rm = TRUE), 
+                          max(mod_vector, na.rm = TRUE),
+                          length.out = 100))
+    names(at2) <- mod
+    grid_args$at <- c(at2, at)  # Getting 100 points. Fixing this to make it more general
+  }
+
+  grid <- do.call(emmeans::qdrg, grid_args)
+
+  # ---------------------------------------- 
+  # Get the marginal means with emmeans package
+  emmeans_args <- list(object  = grid,
+                       specs   = mod,
+                       df      = df_mod,
+                       weights = weights)
+
+
+  if (is_categorical(mod_vector)) {
+    emmeans_args$by <- by
+  } else {
+    emmeans_args$by <- c(mod, by)
+  }
+
+  mm <- do.call(emmeans::emmeans, emmeans_args)
+
+  mm_pi <- pred_interval_esmeans(model, mm, mod = mod)
 
   # ----------------------------------------
   # Check if `mod` is a qualitative factor
-  if (is.character(data[[mod]]) | is.factor(data[[mod]]) | is.null(data[[mod]])) {
-    grid <- emmeans::qdrg(formula = stats::formula(model),
-                          at = at,
-                          data = data,
-                          coef = model$b,
-                          vcov = stats::vcov(model),
-                          df = model$k - 1)
+  if (is_categorical(mod_vector)) {
     # NOTE: Added data argument emmeans >vers 1.7.4.
     # Object is unstable so feeding in the relevant arguments from
     # model object directly. Note, we should think about df!
-
-    mm <- emmeans::emmeans(grid,
-                           specs = mod,
-                           df = df_mod,
-                           by = by,
-                           weights = weights,
-                           ...)
-
-    # getting prediction intervals
-    mm_pi <- pred_interval_esmeans(model, mm, mod = mod)
 
     if (is.null(by)) {
       mod_table <- data.frame(name = firstup(as.character(mm_pi[,1]), upper = upper),
@@ -160,27 +187,6 @@ mod_results <- function(model,
 
   } else {
     # Else, if `mod` is quantitative:
-    at2 <- list(mod = seq(min(data[, mod], na.rm = TRUE),
-                          max(data[, mod], na.rm = TRUE),
-                          length.out = 100))
-
-    names(at2) <- mod
-    grid <- emmeans::qdrg(formula = stats::formula(model),
-                          data = data,
-                          coef = model$b,
-                          vcov = stats::vcov(model),
-                          df = model$k - 1,
-                          at = c(at2, at))  # getting 100 points. Fixing this to make it more general
-
-    mm <- emmeans::emmeans(grid,
-                           specs = mod,
-                           by = c(mod, by),
-                           weights = weights,
-                           df = df_mod)
-
-    # getting prediction intervals
-    mm_pi <- pred_interval_esmeans(model, mm, mod = mod)
-
     if (is.null(by)) {
       mod_table <- data.frame(moderator = mm_pi[, 1],
                               estimate = mm_pi[, "emmean"],
@@ -474,4 +480,17 @@ num_studies <- function(data, mod, group){
     colnames(table) <- c("Parameter", "Num_Studies")
       return(data.frame(table))
 
+}
+
+
+##################################################
+
+# Add new func
+
+is_categorical <- function(x) {
+  if (is.character(x) | is.factor(x) | is.null(x)) {
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
 }
