@@ -108,15 +108,12 @@ mod_results <- function(model,
 
   # Extract the data from the model object.
   # Use only complete cases, remove NAs
-  data <- model$data[model$not.na, ]
-  
-
-
-  # FD: Get the vector of the mod from the data
+  data       <- model$data[model$not.na, ]
   mod_vector <- data[[mod]]
 
-  # ---------------------------------------- 
-  # Get grid from emmeans
+  # ----------------------------------------
+  # Get grid for emmeans
+
   grid_args <- list(formula = stats::formula(model),
                     data    = data,
                     coef    = model$b,
@@ -126,7 +123,7 @@ mod_results <- function(model,
   if (is_categorical(mod_vector)) {
     grid_args$at <- at
   } else {
-    at2 <- list(mod = seq(min(mod_vector, na.rm = TRUE), 
+    at2 <- list(mod = seq(min(mod_vector, na.rm = TRUE),
                           max(mod_vector, na.rm = TRUE),
                           length.out = 100))
     names(at2) <- mod
@@ -135,8 +132,9 @@ mod_results <- function(model,
 
   grid <- do.call(emmeans::qdrg, grid_args)
 
-  # ---------------------------------------- 
-  # Get the marginal means with emmeans package
+  # ----------------------------------------
+  # Get the marginal means and prediction invervals
+
   emmeans_args <- list(object  = grid,
                        specs   = mod,
                        df      = df_mod,
@@ -151,68 +149,55 @@ mod_results <- function(model,
 
   mm <- do.call(emmeans::emmeans, emmeans_args)
 
+  # ----------------------------------------
+  # Get prediction intervals
+
   mm_pi <- pred_interval_esmeans(model, mm, mod = mod)
 
   # ----------------------------------------
-  # Check if `mod` is a qualitative factor
+  # Create model table for output
+
+  common_columns <- data.frame(estimate = mm_pi[, "emmean"],
+                               lowerCL  = mm_pi[, "lower.CL"],
+                               upperCL  = mm_pi[, "upper.CL"],
+                               lowerPR  = mm_pi[, "lower.PI"],
+                               upperPR  = mm_pi[, "upper.PI"])
+
   if (is_categorical(mod_vector)) {
-    # NOTE: Added data argument emmeans >vers 1.7.4.
-    # Object is unstable so feeding in the relevant arguments from
-    # model object directly. Note, we should think about df!
 
     if (is.null(by)) {
-      mod_table <- data.frame(name = firstup(as.character(mm_pi[,1]), upper = upper),
-                              estimate = mm_pi[, "emmean"],
-                              lowerCL = mm_pi[, "lower.CL"],
-                              upperCL = mm_pi[, "upper.CL"],
-                              lowerPR = mm_pi[, "lower.PI"],
-                              upperPR = mm_pi[, "upper.PI"])
-
+      mod_table <- cbind(name = firstup(as.character(mm_pi[, 1]),
+                                        upper = upper),
+                         common_columns)
     } else {
-      mod_table <- data.frame(name = firstup(as.character(mm_pi[, 1]), upper = upper),
-                              condition = mm_pi[, 2],
-                              estimate = mm_pi[, "emmean"],
-                              lowerCL = mm_pi[, "lower.CL"],
-                              upperCL = mm_pi[, "upper.CL"],
-                              lowerPR = mm_pi[, "lower.PI"],
-                              upperPR = mm_pi[, "upper.PI"])
+      mod_table <- cbind(name = firstup(as.character(mm_pi[, 1]),
+                                        upper = upper),
+                         condition = mm_pi[, 2],
+                         common_columns)
     }
-
     # Extract data
     data2 <- get_data_raw(model, mod, group, N, at = at, subset)
-
     mod_table$name <- factor(mod_table$name,
                              levels = mod_table$name,
                              labels = mod_table$name)
 
   } else {
-    # Else, if `mod` is quantitative:
+    # if `mod` is quantitative:
     if (is.null(by)) {
-      mod_table <- data.frame(moderator = mm_pi[, 1],
-                              estimate = mm_pi[, "emmean"],
-                              lowerCL = mm_pi[, "lower.CL"],
-                              upperCL = mm_pi[, "upper.CL"],
-                              lowerPR = mm_pi[, "lower.PI"],
-                              upperPR = mm_pi[, "upper.PI"])
+      mod_table <- cbind(moderator = mm_pi[, 1],
+                         common_columns)
     } else {
-      mod_table <- data.frame(moderator = mm_pi[, 1],
-                              condition = mm_pi[, 2],
-                              estimate = mm_pi[, "emmean"],
-                              lowerCL = mm_pi[, "lower.CL"],
-                              upperCL = mm_pi[, "upper.CL"],
-                              lowerPR = mm_pi[, "lower.PI"],
-                              upperPR = mm_pi[, "upper.PI"])
+      mod_table <- cbind(moderator = mm_pi[, 1],
+                         condition = mm_pi[, 2],
+                         common_columns)
     }
 
-    # extract data
+    # Extract data
     data2 <- get_data_raw_cont(model, mod, group, N, by = by)
 
   }
 
-
-  output <- list(mod_table = mod_table,
-                 data = data2)
-
+  output <- list(mod_table = mod_table, data = data2)
   class(output) <- c("orchard", "data.frame")
 
   return(output)
