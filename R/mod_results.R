@@ -463,10 +463,17 @@ num_studies <- function(data, mod, group){
 
 ##################################################
 
-# Add new func
+#' Check if an Object is Categorical
+#'
+#' Determines whether the given object is categorical, defined as a character
+#' vector, a factor, or `NULL`.
+#'
+#' @param x An object to check.
+#' @return A logical value: `TRUE` if `x` is a character vector, a factor, or `NULL`; otherwise, `FALSE`.
+#' @keywords internal
 
 is_categorical <- function(x) {
-  if (is.character(x) | is.factor(x) | is.null(x)) {
+  if (is.character(x) || is.factor(x) || is.null(x)) {
     return(TRUE)
   } else {
     return(FALSE)
