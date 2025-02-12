@@ -62,8 +62,7 @@
 #'
 # We will need to make sure people use "1" or"moderator_names"
 
-mod_results <- function(model,
-                        mod = "1",
+mod_results <- function(model, mod = "1",
                         group,
                         N = NULL,
                         weights = "prop",
@@ -73,25 +72,23 @@ mod_results <- function(model,
                         upper = TRUE,
                         ...) {
 
-  if (missing(model)) {
-    stop("Please specify the 'model' argument by providing rma.mv or rma model object. See ?mod_results")
-  }
-
-  if (all(class(model) %in% c("robust.rma", "rma.mv", "rma", "rma.uni")) == FALSE) {
-    stop("Sorry, you need to fit a metafor model of class rma.mv, rma, or robust.rma")
-  }
-
-
-  if (missing(group)) {
-    stop("Please specify the 'group' argument by providing the name of the grouping variable. See ?mod_results")
-  }
-
   if (any(grepl("-1|0", as.character(model$formula.mods)))) {
     warning("It is recommended that you fit the model with an intercept. Unanticipated errors can occur otherwise.")
   }
 
   if (any(model$struct %in% c("GEN", "HCS"))) {
     warning("We noticed you're fitting an ~inner|outer rma model ('random slope'). There are circumstances where the prediction intervals for such models are calculated incorrectly. Please check your results carefully.")
+  }
+
+  if (missing(model)) {
+    stop("Please specify the 'model' argument by providing rma.mv or rma model object. See ?mod_results")
+  }
+
+  if (all(class(model) %in% c("robust.rma", "rma.mv", "rma", "rma.uni")) == FALSE) {
+    stop("Sorry, you need to fit a metafor model of class rma.mv, rma, or robust.rma")}
+
+  if (missing(group)) {
+    stop("Please specify the 'group' argument by providing the name of the grouping variable. See ?mod_results")
   }
 
 
@@ -133,13 +130,12 @@ mod_results <- function(model,
   grid <- do.call(emmeans::qdrg, grid_args)
 
   # ----------------------------------------
-  # Get the marginal means and prediction invervals
+  # Get the marginal means and prediction intervals
 
   emmeans_args <- list(object  = grid,
                        specs   = mod,
                        df      = df_mod,
                        weights = weights)
-
 
   if (is_categorical(mod_vector)) {
     emmeans_args$by <- by
@@ -164,14 +160,11 @@ mod_results <- function(model,
                                upperPR  = mm_pi[, "upper.PI"])
 
   if (is_categorical(mod_vector)) {
-
     if (is.null(by)) {
-      mod_table <- cbind(name = firstup(as.character(mm_pi[, 1]),
-                                        upper = upper),
+      mod_table <- cbind(name = firstup(as.character(mm_pi[, 1]), upper = upper),
                          common_columns)
     } else {
-      mod_table <- cbind(name = firstup(as.character(mm_pi[, 1]),
-                                        upper = upper),
+      mod_table <- cbind(name = firstup(as.character(mm_pi[, 1]), upper = upper),
                          condition = mm_pi[, 2],
                          common_columns)
     }
