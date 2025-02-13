@@ -7,20 +7,20 @@
 mod_is_valid(model, mod)
 }
 \arguments{
-\item{model}{A meta-analytic model from the \code{metafor} package.}
+\item{model}{A meta-analytic model from the \pkg{metafor} package.}
 
-\item{mod}{A string specifying the moderator to check. Must be `"1"`
-or one of the moderators included in `model$formula.mods`.}
+\item{mod}{A string specifying the moderator to check. Must be `"1"` or one of 
+the moderators included in \code{model$formula.mods}.}
 }
 \value{
-A logical value: `TRUE` if `mod` is valid, `FALSE` otherwise.
+A logical value: \code{TRUE} if `mod` is valid, strop and throw an error otherwise.
 }
 \description{
-Checks whether the specified `mod` argument is valid.
-It must be either `"1"` (indicating an intercept-only model) or
-a moderator included in the `model` object.
+Checks whether the specified `mod` argument is valid. This argument must be either
+`"1"` (indicating an intercept-only model) or a moderator that is included in the
+meta-analytic model (as specified in `model$formula.mods`).
 }
 \details{
-Check if the specified moderator is valid.
+Validate 'mod'
 }
 \keyword{internal}

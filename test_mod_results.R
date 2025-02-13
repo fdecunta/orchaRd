@@ -1,8 +1,8 @@
+# Add clear error messages for 'group'
+
 library(metafor)
 
-library(devtools)
-
-load_all()
+devtools::load_all()
 
 
 res <- rma.mv(lnrr, lnrr_vi,
@@ -17,13 +17,15 @@ res2 <- rma.mv(lnrr, lnrr_vi,
                mod = ~ trait.type)
 
 
-res3 <- rma.mv(lnrr, lnrr_vi,
-               random = ~ 1 | paper_ID,
-               data = fish)
-
-
-mod_results(res, mod = "treat_end_days", group = "paper_ID")
-
-
-
+# This works
 mod_results(res2, mod = "trait.type", group = "paper_ID")
+
+
+# This two don't define group
+mod_results(res2, mod = "trait.type")
+
+
+mod_results(res2, mod = "trait.type", group = NULL)
+
+# This 'mod' is not part of the data
+mod_results(res2, mod = "foo", group = "paper_ID")
