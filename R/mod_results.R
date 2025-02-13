@@ -440,17 +440,15 @@ weighted_var <- function(x, weights){
 #' }
 
 num_studies <- function(data, mod, group){
-
   # Summarize the number of studies within each level of moderator
-   table <- data        %>%
-            dplyr::group_by({{mod}}) %>%
-            dplyr::summarise(stdy = length(unique({{group}})))
+  table <- data %>%
+    dplyr::group_by({{mod}}) %>%
+    dplyr::summarise(stdy = length(unique({{group}})))
 
-   table <- table[!is.na(table$moderator),]
+  table <- table[!is.na(table$moderator),]
   # Rename, and return
-    colnames(table) <- c("Parameter", "Num_Studies")
-      return(data.frame(table))
-
+  colnames(table) <- c("Parameter", "Num_Studies")
+  return(data.frame(table))
 }
 
 
