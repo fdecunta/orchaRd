@@ -91,6 +91,10 @@ mod_results <- function(model, mod = "1",
     stop("Please specify the 'group' argument by providing the name of the grouping variable. See ?mod_results")
   }
 
+  # Check if 'mod' is a moderator used in 'model'
+  if (!mod_is_valid(model, mod)) {
+    stop(sprintf("Incorrect argument 'mod = %s'. %s is not one of the moderators of the model.", mod, mod))
+  }
 
   # Set up some parameters
   if (is.null(stats::formula(model))) {
@@ -478,4 +482,22 @@ is_categorical <- function(x) {
   } else {
     return(FALSE)
   }
+}
+
+
+#' 
+#' Check if the specified moderator is valid.
+#' 
+#' @title mod_is_valid
+#' @description Checks whether the specified `mod` argument is valid.
+#' It must be either `"1"` (indicating an intercept-only model) or
+#' a moderator included in the `model` object.
+#' @param model A meta-analytic model from the \code{metafor} package.
+#' @param mod A string specifying the moderator to check. Must be `"1"`
+#'   or one of the moderators included in `model$formula.mods`.
+#' @return A logical value: `TRUE` if `mod` is valid, `FALSE` otherwise.
+#' @keywords internal
+
+mod_is_valid <- function(model, mod) {
+  mod == "1" || mod %in% all.vars(model$formula.mods)
 }
